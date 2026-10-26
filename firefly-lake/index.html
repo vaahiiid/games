@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="A calming night-lake game: guide a firefly, catch lights that release kind words, and let your worries drift away.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ccircle cx=%2232%22 cy=%2232%22 r=%2228%22 fill=%22%232d6a5a%22/%3E%3Ccircle cx=%2232%22 cy=%2232%22 r=%2214%22 fill=%22%23ffd27a%22/%3E%3C/svg%3E">
+<title>Firefly Lake</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,500;1,600&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Layout: full-bleed night-lake canvas; quiet HUD in the top corners; kind words rise as DOM text over the scene; centred start card */
+:root{
+  --water:#060f20;
+  --glow:#ffd27a;
+  --lantern:#ffae57;
+  --ink:#eef0e2;
+  --ink-dim:#a6b4c4;
+  --panel:rgba(9,19,38,.7);
+  --line:rgba(238,240,226,.16);
+  --f-words:"Cormorant Garamond",Georgia,"Times New Roman",serif;
+  --f-ui:"Figtree",system-ui,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{
+  background:var(--water);color:var(--ink);font-family:var(--f-ui);overflow:hidden;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  -webkit-user-select:none;user-select:none;
+}
+#lake{position:fixed;inset:0;display:block;touch-action:none;cursor:none}
+
+.hud{
+  position:fixed;z-index:5;
+  top:calc(12px + env(safe-area-inset-top,0px));
+  left:max(16px,env(safe-area-inset-left,0px));
+  right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;pointer-events:none;
+}
+.count{display:flex;align-items:baseline;gap:8px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim)}
+.count b{font-family:var(--f-words);font-size:30px;font-weight:600;letter-spacing:0;color:var(--lantern);font-variant-numeric:tabular-nums}
+.controls{display:flex;gap:8px;flex-wrap:wrap;pointer-events:auto}
+.btn{
+  font:500 13.5px/1 var(--f-ui);color:var(--ink);background:var(--panel);
+  border:1px solid var(--line);border-radius:999px;padding:9px 14px;cursor:pointer;
+  transition:border-color .2s,color .2s;
+}
+.btn[aria-pressed="false"]{color:var(--ink-dim)}
+.btn[aria-pressed="true"]{border-color:rgba(255,174,87,.55)}
+.btn:hover{border-color:rgba(255,210,122,.75)}
+.btn:focus-visible,.go:focus-visible,.ghost:focus-visible{outline:2px solid var(--glow);outline-offset:2px}
+
+#words{position:fixed;inset:0;z-index:3;pointer-events:none;overflow:hidden}
+.msg{
+  position:absolute;transform:translate(-50%,0);max-width:min(78vw,22rem);text-align:center;
+  font:italic 500 clamp(21px,2.3vw,28px)/1.3 var(--f-words);color:#fff4dc;
+  text-shadow:0 0 18px rgba(255,190,100,.55),0 0 2px rgba(0,0,0,.6);
+  animation:rise 5.4s cubic-bezier(.2,.7,.3,1) forwards;
+}
+.msg.wish{color:#ffe08a;font-size:clamp(25px,2.8vw,34px);font-weight:600;animation-duration:7.4s;
+  text-shadow:0 0 26px rgba(255,214,120,.8),0 0 2px rgba(0,0,0,.6)}
+.msg.calm{color:#cfeee2;text-shadow:0 0 20px rgba(140,230,200,.55),0 0 2px rgba(0,0,0,.6)}
+@keyframes rise{
+  0%{opacity:0;transform:translate(-50%,14px)}
+  12%{opacity:1}
+  72%{opacity:1}
+  100%{opacity:0;transform:translate(-50%,-120px)}
+}
+
+.breath{
+  position:fixed;z-index:4;left:50%;transform:translateX(-50%);
+  bottom:calc(26px + env(safe-area-inset-bottom,0px));
+  width:124px;height:124px;display:grid;place-items:center;pointer-events:none;
+}
+.breath .ring{position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(255,210,122,.55);
+  background:radial-gradient(circle,rgba(255,210,122,.16),rgba(255,210,122,0) 70%);animation:breathe 10s ease-in-out infinite}
+.breath span{position:relative;font:italic 500 19px/1 var(--f-words);color:var(--ink)}
+@keyframes breathe{0%{transform:scale(.5)}40%{transform:scale(1)}100%{transform:scale(.5)}}
+
+.hint{
+  position:fixed;z-index:4;left:50%;transform:translateX(-50%);
+  bottom:calc(20px + env(safe-area-inset-bottom,0px));
+  font-size:13px;color:var(--ink-dim);background:var(--panel);border:1px solid var(--line);
+  border-radius:999px;padding:8px 14px;white-space:nowrap;pointer-events:none;transition:opacity 1.2s;
+  max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis;
+}
+
+.overlay{
+  position:fixed;inset:0;z-index:10;display:grid;place-items:center;overflow-y:auto;
+  padding-block:24px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  background:radial-gradient(ellipse at 50% 45%,rgba(6,15,32,.25),rgba(6,15,32,.75));
+}
+.card{
+  max-width:27rem;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:22px;
+  padding:28px 26px 24px;backdrop-filter:blur(10px);display:flex;flex-direction:column;gap:16px;
+}
+.card h1{font:600 42px/1.05 var(--f-words);margin:0;text-wrap:balance}
+.card h2{font:600 28px/1.1 var(--f-words);margin:0}
+.lead{margin:0;font-size:15.5px;line-height:1.6;color:var(--ink)}
+.how{display:grid;grid-template-columns:auto 1fr;gap:9px 14px;margin:0;font-size:14px;line-height:1.45}
+.how dt{font:italic 600 17px/1.3 var(--f-words);color:var(--lantern);white-space:nowrap}
+.how dd{margin:0;color:var(--ink-dim);min-width:0}
+.small{margin:0;font-size:13px;color:var(--ink-dim);line-height:1.5}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.go{font:600 16px/1 var(--f-ui);color:#2a1604;background:linear-gradient(180deg,#ffd98d,var(--lantern));
+  border:0;border-radius:999px;padding:14px 26px;cursor:pointer;box-shadow:0 0 30px rgba(255,174,87,.35)}
+.ghost{font:500 15px/1 var(--f-ui);color:var(--ink-dim);background:none;border:1px solid var(--line);border-radius:999px;padding:13px 20px;cursor:pointer}
+#thought{
+  width:100%;box-sizing:border-box;font:italic 500 20px/1.4 var(--f-words);color:var(--ink);
+  background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:14px;padding:12px 14px;resize:none;
+}
+#thought:focus{outline:2px solid rgba(255,210,122,.6);outline-offset:1px}
+@media (max-width:420px){.card h1{font-size:36px}.how{grid-template-columns:1fr;gap:2px 0}.how dd{margin-bottom:8px}}
+@media (prefers-reduced-motion:reduce){.msg{animation-duration:6.5s}.breath .ring{animation-duration:14s}}
+</style>
+
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}a.btn{text-decoration:none;display:inline-flex;align-items:center;gap:7px}</style>
+</head>
+<body>
+<canvas id="lake" aria-label="A night lake with a firefly, floating lights, lanterns and lotus flowers"></canvas>
+<div id="words" aria-live="polite"></div>
+
+<div class="hud">
+  <div class="count">Lanterns <b id="count">0</b></div>
+  <div class="controls">
+    <a class="btn" href="../"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>All games</a>
+    <button class="btn" id="letBtn">Let go of a thought</button>
+    <button class="btn" id="breathBtn" aria-pressed="false">Breathing guide</button>
+    <button class="btn" id="soundBtn" aria-pressed="true">Sound on</button>
+  </div>
+</div>
+
+<div class="breath" id="breath" hidden><div class="ring" id="ring"></div><span id="breathLabel">breathe in</span></div>
+<div class="hint" id="hint" hidden>Hold still to breathe in. Release to breathe out.</div>
+
+<div class="overlay" id="intro">
+  <div class="card">
+    <h1>Firefly Lake</h1>
+    <p class="lead">Guide the firefly across the night lake. Every light you touch lets go of a kind word and sends a lantern into the sky.</p>
+    <dl class="how">
+      <dt>Drift</dt><dd>Move your mouse or finger. The firefly follows.</dd>
+      <dt>Breathe</dt><dd>Press and hold still to breathe in. Release, and a wave of light gathers everything it touches.</dd>
+      <dt>Wish</dt><dd>Now and then a star falls. Catch it for a wish.</dd>
+      <dt>Let go</dt><dd>Write down what's bothering you and set it adrift on a paper boat.</dd>
+    </dl>
+    <p class="small">No score, no timer, no losing. Stop moving and the firefly drifts on its own. The sky changes as your lanterns gather.</p>
+    <div class="row"><button class="go" id="go">Enter the lake</button><span class="small">Best with headphones.</span></div>
+  </div>
+</div>
+
+<div class="overlay" id="letgo" hidden>
+  <form class="card" id="letForm">
+    <h2>What's weighing on you?</h2>
+    <p class="small">Write it in a few words. It goes on a paper boat and floats away. Nothing is saved.</p>
+    <label for="thought" class="small">Your thought</label>
+    <textarea id="thought" rows="2" maxlength="90" placeholder="e.g. that meeting today"></textarea>
+    <div class="row"><button class="go" type="submit">Set it adrift</button><button class="ghost" type="button" id="letCancel">Not now</button></div>
+  </form>
+</div>
+
+<script>
+(function(){
+/* ---------------- kind words ---------------- */
+const SINGLES=[
+"You don't have to fix everything tonight.","Forgive yourself. You were doing your best.","It's okay to not be okay.",
+"This moment is hard. It won't last forever.","You are not your worst day.","Let the anger pass through you, not stay in you.",
+"Your feelings make sense.","You're allowed to start again. Right now.","Rest is not a reward. It's a need.",
+"Nothing needs an answer this minute.","You've survived every hard day so far.","Be as kind to yourself as you'd be to a friend.",
+"The storm is loud. You are still here.","Small steps still count.","You can put it down for a while.",
+"Mistakes are how people learn. Including you.","You don't need to win this one.","Your worth isn't measured by today.",
+"Feelings are weather. You are the sky.","Let tonight be softer than today.","You can respond later. Breathe now.",
+"Done is better than perfect.","Not everything deserves your energy.","You can let this one go.","Being tired is not failing.",
+"Tomorrow is a new page.","You are learning, not failing.","Some days are just for getting through. That's enough.",
+"Progress is rarely a straight line.","You are allowed to take up space.","Give yourself the patience you give others.",
+"It matters that you keep trying.","Quiet is a kind of strength.","You're carrying a lot. Set some of it down.",
+"Your best looks different every day. That's fine.","The hard part will pass. You will still be here.","Not every thought deserves belief.",
+"Anger means something mattered to you.","You can be upset and still be kind to yourself.","No one has it all figured out.",
+"It's okay to ask for help.","You've handled hard things before. You'll handle this.","Peace is a practice, not a place.",
+"Let your breath be slower than your thoughts.","Your mind is busy. Your body can rest.","One thing at a time.",
+"The problem will still be there in ten minutes. So will your calm.","Be gentle. You're still growing.","You're not behind. You're on your own path.",
+"You deserve the compassion you give away.","Nothing is ruined. It's just hard right now.","Let go of what you can't control.",
+"You can choose your next move slowly.","Today doesn't define you.","Some things only time can fix.",
+"Staying calm right now is brave.","Your heart is allowed to rest.","Softness is not weakness.","Stillness is allowed.",
+"The past is done. This breath is new.","It's fine to stop for a while.","You're more than this moment.",
+"The world can wait a few breaths.","Every wave settles eventually.","You don't have to carry yesterday into tonight.",
+"Mistakes don't cancel your goodness.","You're allowed to change your mind.","Be proud of how far you've come.",
+"Kindness starts on the inside.","Your calm is worth protecting.","You can say no.","You don't owe anyone an instant reaction.",
+"Let yourself be human.","You did enough today.","It's okay to feel this. It's okay to let it pass.","Even the moon has phases.",
+"Rivers find their way around rocks.","Lanterns rise slowly. So can you.","Light finds you when you slow down.",
+"You don't need to rush your healing.","Every lantern up there is a breath you took.","Here, nothing is urgent.",
+"You can be a work in progress and still be enough.","Let the water hold what you can't.","Be still. Let the lake do the work.",
+"Your future self will thank you for this pause.","You're safe to slow down here.","The best decisions are rarely made in anger.",
+"Pause before you reply. You've earned the time.","Not every battle is yours to fight.","Let it be enough for today.",
+"You're not alone in feeling this.","Gentleness is a strength.","You can begin again as many times as you need.","Hold yourself kindly.",
+"Let your shoulders fall away from your ears.","Your story isn't over.","What you feel is valid. What you do next is your choice.",
+"Being calm isn't giving up. It's taking back control.","Rest now. Solve later.","The night is patient. You can be too.","There is time.",
+"Breathe like the lake: slow and wide.","You are allowed to be a beginner.","Every small light adds up.",
+"You don't have to be perfect to be loved.","Let this feeling move through, like wind on water.","Anger is energy. Let it settle into clarity.",
+"You have permission to rest.","Your effort matters, even when no one sees it.","Trust the slow process.","Release what's heavy.",
+"It's not too late.","Kind words to yourself count too.","You've been brave today, even if it didn't feel like it.",
+"Choose peace over being right, just this once.","Let today's weight rest on the water.","Even the busiest mind has a quiet corner.",
+"Learning to be gentle takes practice.","Not knowing is okay.","The next step can be very small.","You can let other people be wrong.",
+"Some things are not yours to carry.","You are worthy of rest.","Calm spreads. Start with you.","Your breath is always with you.",
+"Look how many lanterns you've lit.","Slow is still moving.","This is a safe place to feel.","You're allowed a quiet minute.",
+"There's no wrong way to rest.","Let it drift.","Let the lights carry it away.","You are steadier than you feel.",
+"Give it time. Give yourself time.","Forgive the moment. Forgive yourself.","Not every day has to be productive.",
+"Peace doesn't need permission.","You are enough, exactly as you are tonight.","Kindness to yourself is never wasted.",
+"Whatever happened, you can learn from it.","Stop arguing with what already happened.","The quiet is on your side.",
+"Every exhale is a little letting go.","Breathe out the day.","You are not the anger. You're the one noticing it.",
+"Feel it, name it, let it go.","It's okay if you need a moment longer.","You have done hard things before.",
+"Be the calm in your own storm.","You get to decide what stays.","Even small lights brighten dark water.",
+"The lake doesn't hurry. Neither do you.","You can come back here anytime."
+];
+const OPEN=["Breathe.","Slow down.","It's okay.","Pause.","Easy now.","Soften your jaw.","Drop your shoulders.","Unclench your hands.",
+"Rest a moment.","Be gentle with yourself.","Exhale slowly.","One breath at a time.","Let it settle.","You're here.","Stay with this breath.",
+"Take your time.","Forgive yourself.","Let it go.","No rush.","Look up.","Listen to the water.","Feel your feet on the ground.",
+"Relax your forehead.","Notice your breath.","Give yourself a minute.","Be kind to you.","It's alright.","Stay soft.","Breathe in slowly.",
+"Let your breath lengthen.","Sit with it.","Pause here.","Come back to now.","Loosen your grip.","Lower your inner voice.","Quiet the noise.",
+"Nothing to do right now.","Just this moment.","Let go a little more.","Lean back.","Close your eyes for a second.","Let the light hold you.",
+"Stay with the lake.","Breathe with the water.","Be still.","Release your shoulders.","Let it be.","Slow your thoughts.","Gently now.","Hey, it's okay."];
+const CLOSE=["This feeling will pass.","You're doing better than you think.","You are allowed to rest.","You are enough.",
+"Nothing has to be solved tonight.","You're safe right here.","Tomorrow can wait.","You deserve kindness, especially from yourself.",
+"Anger is a signal, not a verdict.","You've got this.","Every storm runs out of rain.","You don't have to be perfect.",
+"Mistakes are part of being human.","Your calm is coming back.","You're stronger than this moment.","This is only a chapter.",
+"Let the water carry it.","It won't feel like this forever.","You are worth your own patience.","The rest can wait.",
+"You can try again later.","It's not all on you.","You are not alone.","What matters will still matter tomorrow.",
+"You've done enough for today.","Peace is closer than it feels.","You're allowed to feel this.","Nothing bad happens if you pause.",
+"The night is on your side.","You're learning every day.","You can start over anytime.","This is your quiet place.",
+"You are more than your mistakes.","Your heart deserves rest.","The world can wait a minute.","Your feelings are valid.",
+"You're handling more than people know.","Better moments are coming.","Feeling this doesn't make you wrong.",
+"Small calm is still calm.","Let it be lighter now.","You don't owe anyone perfection.","You can choose peace.","This moment is enough.",
+"You're growing, even now.","Kindness to yourself counts.","You're allowed to slow down.","There is no rush here.",
+"The lights are gathering for you.","Things can be fixed later.","You can be proud of yourself.","Everything is a little lighter now.",
+"Your best is good enough.","You can trust yourself.","Let today end gently.","The hard part is passing.",
+"You are steady underneath it all.","There's room to breathe here.","You will find your way.","Calm will come back to you.",
+"It's going to be alright.","Let the moon keep watch.","Every breath counts.","You have time.","You're doing just fine.",
+"Let yourself be.","Most things heal with time.","The lake is holding it for you.","Be patient with your heart."];
+const WISHES=["May tonight be gentle with you.","May your mind grow as quiet as this lake.","May you sleep well tonight.",
+"May tomorrow surprise you kindly.","May you meet yourself with warmth.","May what's heavy grow lighter.","May you find what you're looking for.",
+"May the people you love be well.","May you forgive what needs forgiving.","May your work bring you peace, not just pressure.",
+"May you feel at home wherever you are.","May your next step be easy.","May you remember how far you've come.",
+"May you have the patience of the moon.","May good news find you soon.","May you rest without guilt.",
+"May your heart feel lighter in the morning.","May you be as kind to yourself as you are to others.","May this hard season end softly.",
+"A falling star, just for you.","May you find calm in small things.","May you laugh tomorrow.","May you trust your own pace."];
+const LETGO=["It's out of your hands now.","The lake will keep it. You don't have to.","Gone with the current.","Lighter already.","Let it sink into the quiet."];
+
+const used=new Set();
+const rnd=a=>a[Math.random()*a.length|0];
+function kind(){
+  for(let i=0;i<30;i++){
+    const s=Math.random()<.42?rnd(SINGLES):rnd(OPEN)+" "+rnd(CLOSE);
+    if(!used.has(s)){used.add(s);return s;}
+  }
+  return rnd(SINGLES);
+}
+let wishBag=[];
+function wish(){if(!wishBag.length)wishBag=WISHES.slice().sort(()=>Math.random()-.5);return wishBag.pop();}
+
+/* ---------------- canvas setup ---------------- */
+const cv=document.getElementById('lake'),cx=cv.getContext('2d');
+const words=document.getElementById('words');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W=0,H=0,HZ=0,stars=[],ridge=[],frameN=0,maxDPR=1.5;
+
+function sprite(r,g,b){
+  const c=document.createElement('canvas');c.width=c.height=128;
+  const x=c.getContext('2d'),gr=x.createRadialGradient(64,64,0,64,64,64);
+  gr.addColorStop(0,'rgba(255,255,240,1)');gr.addColorStop(.12,`rgba(${r},${g},${b},.95)`);
+  gr.addColorStop(.4,`rgba(${r},${g},${b},.28)`);gr.addColorStop(1,`rgba(${r},${g},${b},0)`);
+  x.fillStyle=gr;x.fillRect(0,0,128,128);return c;
+}
+const AMBER=sprite(255,200,110),TEAL=sprite(150,240,205),WARM=sprite(255,160,80),PALE=sprite(220,230,255),PINK=sprite(255,170,200),GOLD=sprite(255,225,130);
+function glow(img,x,y,size,a){if(a<=0)return;cx.globalAlpha=Math.min(1,a);cx.drawImage(img,x-size/2,y-size/2,size,size);}
+const add=()=>cx.globalCompositeOperation='lighter',norm=()=>cx.globalCompositeOperation='source-over';
+
+function resize(){
+  const D=Math.min(maxDPR,window.devicePixelRatio||1);W=innerWidth;H=innerHeight;
+  cv.width=W*D;cv.height=H*D;cv.style.width=W+'px';cv.style.height=H+'px';cx.setTransform(D,0,0,D,0,0);HZ=H*.62;
+  stars=[];const n=Math.round(W*HZ/2400);
+  for(let i=0;i<n;i++)stars.push({x:Math.random()*W,y:Math.random()*HZ*.9,r:Math.random()*1.1+.3,p:Math.random()*6.28,s:Math.random()*.8+.3});
+  ridge=[];for(let x=-24;x<=W+48;x+=24){const h=14+Math.sin(x*.0042)*12+Math.sin(x*.013+1.3)*7+Math.sin(x*.031+.4)*3;ridge.push([x,HZ-Math.max(4,h)]);}
+}
+addEventListener('resize',resize);resize();
+
+/* ---------------- state ---------------- */
+const ff={x:W*.5,y:HZ-90,tx:W*.5,ty:HZ-90,trail:[]};
+let motes=[],lanterns=[],ripples=[],sparks=[],lotuses=[],waves=[],boats=[],comps=[];
+let count=0,lastMove=-1e9,started=false,hold=null,outLabel=null,shoot=null,nextShoot=performance.now()+14000;
+const koi=[0,1,2].map(i=>({a:.00007+i*.000018,b:.00011+i*.00002,p:i*2.1,q:i*1.3,col:i===1?'#f4f1ea':'#ff9a5c',trail:[]}));
+
+function spawnMote(){
+  motes.push({x:Math.random()*W,y:H*.14+Math.random()*H*.74,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.18,
+    p:Math.random()*6.28,born:performance.now(),img:Math.random()<.55?TEAL:AMBER});
+}
+for(let i=0;i<8;i++)spawnMote();
+
+/* ---------------- words on screen ---------------- */
+let lastSay={t:0,top:0};
+function say(text,x,y,cls){
+  const d=document.createElement('div');d.className='msg'+(cls?' '+cls:'');d.textContent=text;words.appendChild(d);
+  const w=d.offsetWidth;const left=Math.max(w/2+16,Math.min(W-w/2-16,x));
+  let top=Math.max(80,Math.min(H-90,y-40));
+  const now=performance.now();
+  if(now-lastSay.t<1500&&Math.abs(top-lastSay.top)<56)top=Math.max(80,lastSay.top-58);
+  lastSay={t:now,top};d.style.left=left+'px';d.style.top=top+'px';
+  setTimeout(()=>d.remove(),cls==='wish'?7600:5600);
+  while(words.children.length>7)words.firstChild.remove();
+}
+
+/* ---------------- audio ---------------- */
+let ac=null,master,delay,soundOn=true;
+const SCALE=[220,246.94,277.18,329.63,369.99,440,493.88,554.37,659.25,739.99,880];
+let ni=5;
+function initAudio(){
+  if(ac)return;
+  try{ac=new (window.AudioContext||window.webkitAudioContext)();}catch(e){return;}
+  master=ac.createGain();master.gain.value=.6;master.connect(ac.destination);
+  delay=ac.createDelay(2);delay.delayTime.value=.42;
+  const fb=ac.createGain();fb.gain.value=.4;const lp=ac.createBiquadFilter();lp.type='lowpass';lp.frequency.value=1700;
+  const wet=ac.createGain();wet.gain.value=.35;delay.connect(lp);lp.connect(fb);fb.connect(delay);lp.connect(wet);wet.connect(master);
+  const pad=ac.createGain();pad.gain.value=0;const pf=ac.createBiquadFilter();pf.type='lowpass';pf.frequency.value=520;
+  pad.connect(pf);pf.connect(master);
+  [[110,'sine',.045,-3],[164.81,'sine',.03,3],[220,'triangle',.012,0]].forEach(([f,t,g0,d])=>{
+    const o=ac.createOscillator(),g=ac.createGain();o.type=t;o.frequency.value=f;o.detune.value=d;g.gain.value=g0;o.connect(g);g.connect(pad);o.start();});
+  const lfo=ac.createOscillator(),lg=ac.createGain();lfo.frequency.value=.07;lg.gain.value=.25;lfo.connect(lg);lg.connect(pad.gain);lfo.start();
+  pad.gain.linearRampToValueAtTime(.75,ac.currentTime+5);
+}
+function pluck(f,when,vol,dur){
+  if(!ac||!soundOn)return;const t=ac.currentTime+(when||0);dur=dur||3;
+  const o=ac.createOscillator(),o2=ac.createOscillator(),g=ac.createGain(),g2=ac.createGain();
+  o.type='sine';o2.type='triangle';o.frequency.value=f;o2.frequency.value=f*2;g2.gain.value=.12;
+  o2.connect(g2);g2.connect(g);o.connect(g);
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.02);g.gain.exponentialRampToValueAtTime(.0008,t+dur);
+  g.connect(master);g.connect(delay);o.start(t);o2.start(t);o.stop(t+dur+.1);o2.stop(t+dur+.1);
+}
+function note(){ni=Math.max(0,Math.min(SCALE.length-1,ni+[-2,-1,1,2][Math.random()*4|0]));pluck(SCALE[ni],0,.2,3);}
+function swell(freqs,dur,vol){
+  if(!ac||!soundOn)return;const t=ac.currentTime;
+  freqs.forEach((f,i)=>{const o=ac.createOscillator(),g=ac.createGain();o.type='sine';o.frequency.value=f;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.5+i*.08);g.gain.exponentialRampToValueAtTime(.0008,t+dur);
+    o.connect(g);g.connect(master);g.connect(delay);o.start(t);o.stop(t+dur+.1);});
+}
+
+/* ---------------- events in the world ---------------- */
+function setCount(){document.getElementById('count').textContent=count.toLocaleString('en-GB');}
+function burst(x,y,n,img){n=reduce?Math.ceil(n/3):n;for(let i=0;i<n;i++){const a=Math.random()*6.28,v=Math.random()*1.5+.3;sparks.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-.2,l:1,img:img||AMBER});}}
+function addLantern(x,y,big){
+  lanterns.push({x,y,vy:-.32-Math.random()*.12,p:Math.random()*6.28,ty:H*.05+Math.random()*(HZ*.6),s:big?1.5:1,end:big?.6:.38,big:!!big});
+  if(lanterns.length>80)lanterns.shift();
+  if(comps.length<40)comps.push({ang:Math.random()*6.28,rad:28+Math.random()*52,sp:(Math.random()<.5?-1:1)*(.0005+Math.random()*.0009),ph:Math.random()*6.28,x,y});
+}
+function rippleAt(x,y,lotus){
+  const ry=y>HZ+6?y:HZ+10+(HZ-y)*.3;const yy=Math.min(H-8,ry);
+  ripples.push({x,y:yy,r:4,a:.5});
+  if(lotus&&Math.random()<.6){lotuses.push({x,y:Math.max(HZ+14,yy),t0:performance.now()});if(lotuses.length>18)lotuses.shift();}
+}
+function collect(m){
+  count++;setCount();note();rippleAt(m.x,m.y,true);addLantern(m.x,m.y,false);burst(m.x,m.y,12,m.img);
+  say(kind(),m.x,m.y);
+}
+
+/* ---------------- input ---------------- */
+function point(e){ff.tx=e.clientX;ff.ty=e.clientY;lastMove=performance.now();}
+cv.addEventListener('pointermove',e=>{point(e);if(hold&&Math.hypot(e.clientX-hold.x,e.clientY-hold.y)>16)hold=null;});
+cv.addEventListener('pointerdown',e=>{
+  point(e);
+  if(shoot&&Math.hypot(e.clientX-shoot.x,e.clientY-shoot.y)<48){catchStar();return;}
+  hold={t:performance.now(),x:e.clientX,y:e.clientY};
+});
+function endHold(){
+  if(!hold)return;const d=performance.now()-hold.t;
+  if(d>650){const h=Math.min(1,d/4000);waves.push({x:ff.x,y:ff.y,r:10,max:140+h*300});
+    outLabel={x:ff.x,y:ff.y,t:performance.now()};swell([110,164.81,220,277.18],4,.07);}
+  hold=null;
+}
+cv.addEventListener('pointerup',endHold);cv.addEventListener('pointercancel',()=>hold=null);cv.addEventListener('pointerleave',endHold);
+
+function catchStar(){
+  const s=shoot;shoot=null;nextShoot=performance.now()+16000+Math.random()*20000;count++;setCount();
+  [0,4,7,9].forEach((k,i)=>pluck(SCALE[Math.min(SCALE.length-1,k+1)],i*.13,.16,3.5));
+  burst(s.x,s.y,28,GOLD);addLantern(s.x,s.y,true);say(wish(),s.x,s.y,'wish');
+}
+
+/* ---------------- drawing ---------------- */
+function moonPos(){return[W*.18,H*.16,Math.max(16,Math.min(W,H)*.045)];}
+function drawSky(t){
+  const g=cx.createLinearGradient(0,0,0,HZ);g.addColorStop(0,'#0a1430');g.addColorStop(.72,'#16304c');g.addColorStop(1,'#27435e');
+  cx.globalAlpha=1;cx.fillStyle=g;cx.fillRect(0,0,W,HZ+1);
+  /* aurora grows with your lanterns */
+  const A=Math.max(0,Math.min(1,(count-6)/24));
+  if(A>0){
+    add();const cols=[[110,255,190],[90,220,230],[170,140,255]];
+    for(let j=0;j<3;j++){
+      const base=H*(.07+.06*j),h0=H*(.13+.04*j),c=cols[j];
+      const gr=cx.createLinearGradient(0,base,0,base+h0*1.2);
+      gr.addColorStop(0,`rgba(${c},0)`);gr.addColorStop(.55,`rgba(${c},.55)`);gr.addColorStop(1,`rgba(${c},0)`);
+      cx.globalAlpha=.2*A;cx.fillStyle=gr;cx.beginPath();
+      const top=x=>base+Math.sin(x*.004+t*.00022*(j+1)+j)*H*.035;
+      const bot=x=>top(x)+h0*(.8+.35*Math.sin(x*.006+t*.0003+j*2));
+      cx.moveTo(0,top(0));for(let x=0;x<=W+24;x+=24)cx.lineTo(x,top(x));
+      for(let x=W+24;x>=0;x-=24)cx.lineTo(x,bot(x));cx.closePath();cx.fill();
+    }
+    norm();
+  }
+  cx.fillStyle='#eef0e2';
+  for(const s of stars){cx.globalAlpha=Math.max(.08,.35+.45*Math.sin(t*s.s*.001+s.p));cx.fillRect(s.x,s.y,s.r*1.6,s.r*1.6);}
+}
+function drawMoon(){
+  const[mx,my,mr]=moonPos();add();glow(PALE,mx,my,mr*9,.35);norm();
+  cx.globalAlpha=1;cx.fillStyle='#ecefdc';cx.beginPath();cx.arc(mx,my,mr,0,6.283);cx.fill();
+  cx.fillStyle='rgba(170,182,160,.35)';cx.beginPath();cx.arc(mx-mr*.3,my-mr*.2,mr*.22,0,6.283);cx.fill();
+  cx.beginPath();cx.arc(mx+mr*.35,my+mr*.3,mr*.14,0,6.283);cx.fill();
+}
+function drawRidge(col,alpha){cx.globalAlpha=alpha;cx.fillStyle=col;cx.beginPath();cx.moveTo(-24,HZ+1);for(const[x,y]of ridge)cx.lineTo(x,y);cx.lineTo(W+48,HZ+1);cx.closePath();cx.fill();}
+function drawConstellations(){
+  const s=lanterns.filter(L=>L.y<=L.ty+1);cx.strokeStyle='#ffd8a0';cx.lineWidth=.8;
+  for(const a of s){let best=null,bd=150;for(const b of s){if(a===b)continue;const d=Math.hypot(a.x-b.x,a.y-b.y);if(d<bd){bd=d;best=b;}}
+    if(best){cx.globalAlpha=.13*(1-bd/150)+.03;cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(best.x,best.y);cx.stroke();}}
+}
+function drawLantern(L,t,alpha){
+  const x=L.x+Math.sin(t*.0011+L.p)*2.2,y=L.y,s=L.s,f=.85+.15*Math.sin(t*.006+L.p*3);
+  add();glow(L.big?GOLD:WARM,x,y,48*s,.75*f*alpha);norm();
+  cx.globalAlpha=.95*alpha;cx.fillStyle=L.big?'#ffe39a':'#ffc677';
+  const w=7*s,h=9*s;cx.beginPath();if(cx.roundRect)cx.roundRect(x-w/2,y-h/2,w,h,2.5*s);else cx.rect(x-w/2,y-h/2,w,h);cx.fill();
+}
+function drawFirefly(t,alpha){
+  const pulse=.85+.15*Math.sin(t*.004);add();
+  for(let i=0;i<ff.trail.length;i++){const p=ff.trail[i];glow(AMBER,p.x,p.y,14+i*.6,(i/ff.trail.length)*.18*alpha);}
+  let aura=90*pulse;
+  if(hold&&alpha===1){const h=Math.max(0,Math.min(1,(t-hold.t)/4000));aura+=h*170;glow(AMBER,ff.x,ff.y,aura*1.4,.12+.12*h);}
+  glow(AMBER,ff.x,ff.y,aura,.55*alpha);glow(AMBER,ff.x,ff.y,26,.95*alpha);norm();
+}
+function drawMote(m,t,alpha){
+  const fade=Math.max(0,Math.min(1,(t-m.born)/1500)),b=.7+.3*Math.sin(t*.003+m.p);
+  add();glow(m.img,m.x,m.y,38*b,.8*fade*alpha);glow(m.img,m.x,m.y,12,fade*alpha);norm();
+}
+function persp(y){return .5+.65*Math.max(0,(y-HZ)/(H-HZ));}
+function drawKoi(k,t){
+  const tr=k.trail,n=tr.length;if(n<2)return;
+  for(let i=n-1;i>=0;i--){const p=tr[i],s=persp(p.y),f=1-i/n;
+    cx.globalAlpha=.32*f+.08;cx.fillStyle=(i===3||i===6)?'#fff1e0':k.col;cx.beginPath();cx.arc(p.x,p.y,(1.6+6*f)*s,0,6.283);cx.fill();}
+  add();glow(WARM,tr[0].x,tr[0].y,40*persp(tr[0].y),.18);norm();
+}
+function ease(x){return 1-Math.pow(1-x,3);}
+function drawLotus(L,t){
+  const s=persp(L.y),b=ease(Math.max(0,Math.min(1,(t-L.t0)/3200))),x=L.x,y=L.y;
+  cx.globalAlpha=.85;cx.fillStyle='#14352f';cx.beginPath();cx.ellipse(x,y,18*s,5.5*s,0,0,6.283);cx.fill();
+  add();glow(PINK,x,y-4*s,64*s*b,.32*b);norm();
+  for(let k=0;k<7;k++){const a=-Math.PI/2+(k/6-.5)*1.9*b;
+    cx.save();cx.translate(x,y-s);cx.rotate(a+Math.PI/2);cx.globalAlpha=.9;cx.fillStyle=k%2?'#f3c2d2':'#fbe2ea';
+    const l=.4+.6*b;cx.beginPath();cx.ellipse(0,-7*s*l,3.6*s,7.5*s*l,0,0,6.283);cx.fill();cx.restore();}
+  cx.globalAlpha=.95;cx.fillStyle='#ffd27a';cx.beginPath();cx.arc(x,y-2*s,2.2*s*b,0,6.283);cx.fill();
+}
+function drawBoat(B,t){
+  const p=Math.max(0,Math.min(1,(t-B.t0)/15000)),e=p*p*(3-2*p);
+  B.y=H-56-e*(H-56-HZ-14);B.x+=B.dx;const s=1.25-e*1.0,x=B.x,y=B.y+Math.sin(t*.002)*1.5*s;
+  add();glow(PALE,x,y,90*s,.18);norm();
+  cx.globalAlpha=Math.min(1,1.6-p);cx.fillStyle='#f2efe4';
+  cx.beginPath();cx.moveTo(x-26*s,y-6*s);cx.lineTo(x+26*s,y-6*s);cx.lineTo(x+16*s,y+4*s);cx.lineTo(x-16*s,y+4*s);cx.closePath();cx.fill();
+  cx.fillStyle='#dcd8cb';cx.beginPath();cx.moveTo(x-2*s,y-6*s);cx.lineTo(x+2*s,y-30*s);cx.lineTo(x+16*s,y-6*s);cx.closePath();cx.fill();
+  cx.fillStyle='#e9e5d8';cx.beginPath();cx.moveTo(x-2*s,y-6*s);cx.lineTo(x+2*s,y-30*s);cx.lineTo(x-14*s,y-6*s);cx.closePath();cx.fill();
+  const ta=Math.max(0,1-p*1.5);
+  if(ta>0){cx.globalAlpha=ta;cx.fillStyle='#fff4dc';cx.textAlign='center';
+    cx.font=`italic 500 ${Math.max(13,20*s)}px "Cormorant Garamond",Georgia,serif`;cx.fillText(B.text,Math.max(80,Math.min(W-80,x)),y-40*s);}
+  if(frameN%55===0)ripples.push({x,y:B.y+4*s,r:6*s,a:.3});
+  return p>=1;
+}
+function canvasLabel(text,x,y,a){
+  cx.globalAlpha=a;cx.fillStyle='#fff4dc';cx.textAlign='center';cx.font='italic 500 20px "Cormorant Garamond",Georgia,serif';cx.fillText(text,x,y);
+}
+
+/* ---------------- main loop ---------------- */
+let lastT=0,slow=0;
+function frame(){
+  requestAnimationFrame(frame);
+  const t=performance.now(),dt=t-(lastT||t);lastT=t;
+  /* drop resolution if the device struggles */
+  if(dt>30&&dt<500){slow++;if(slow>90&&maxDPR>1){maxDPR=1;resize();slow=0;}}else if(slow>0)slow--;
+  try{step(t);}catch(err){cx.globalAlpha=1;norm();if(!frame.warned){frame.warned=1;console.error(err);}}
+}
+function step(t){
+  frameN++;
+  if(t-lastMove>4000){ff.tx=W*.5+Math.sin(t*.00021)*W*.32+Math.sin(t*.00057)*W*.08;ff.ty=HZ*.72+Math.sin(t*.00033)*H*.16;}
+  ff.tx=Math.max(20,Math.min(W-20,ff.tx));ff.ty=Math.max(30,Math.min(H-24,ff.ty));
+  ff.x+=(ff.tx-ff.x)*.07+Math.sin(t*.003)*.35;ff.y+=(ff.ty-ff.y)*.07+Math.cos(t*.0023)*.35;
+  if(!reduce){ff.trail.push({x:ff.x,y:ff.y});if(ff.trail.length>18)ff.trail.shift();}
+
+  for(const m of motes){
+    m.x+=m.vx+Math.sin(t*.0007+m.p)*.15;m.y+=m.vy+Math.cos(t*.0006+m.p)*.12;
+    if(hold){const h=Math.max(0,Math.min(1,(t-hold.t)/4000)),d=Math.hypot(ff.x-m.x,ff.y-m.y);if(d<260*h+40){m.x+=(ff.x-m.x)*.004*h;m.y+=(ff.y-m.y)*.004*h;}}
+    if(m.x<-20)m.x=W+20;if(m.x>W+20)m.x=-20;if(m.y<H*.08)m.vy=Math.abs(m.vy);if(m.y>H-20)m.vy=-Math.abs(m.vy);
+  }
+  for(let i=motes.length-1;i>=0;i--){const m=motes[i];if(t-m.born<600)continue;
+    let hit=Math.hypot(m.x-ff.x,m.y-ff.y)<28;
+    if(!hit)for(const w of waves)if(Math.hypot(m.x-w.x,m.y-w.y)<w.r+8){hit=true;break;}
+    if(hit){collect(m);motes.splice(i,1);setTimeout(spawnMote,600+Math.random()*1500);}
+  }
+  for(const L of lanterns){if(L.y>L.ty){L.y+=L.vy;L.s+=(L.end-L.s)*.004;}else L.s+=(L.end-L.s)*.02;}
+  for(const r of ripples){r.r+=.55;r.a-=.0055;}ripples=ripples.filter(r=>r.a>0);
+  for(const s of sparks){s.x+=s.vx;s.y+=s.vy;s.vx*=.96;s.vy*=.96;s.l-=.018;}sparks=sparks.filter(s=>s.l>0);
+  for(const w of waves)w.r+=3.2;waves=waves.filter(w=>w.r<w.max);
+  for(const L of lotuses)L.x+=Math.sin(t*.0004+L.t0)*.04;
+  for(const c of comps){const a=c.ang+t*c.sp;const tx=ff.x+Math.cos(a)*c.rad,ty=ff.y+Math.sin(a)*c.rad*.7+Math.sin(t*.002+c.ph)*6;c.x+=(tx-c.x)*.045;c.y+=(ty-c.y)*.045;}
+  if(frameN%3===0)for(const k of koi){
+    k.trail.unshift({x:W*(.5+.42*Math.sin(t*k.a+k.p)),y:HZ+(H-HZ)*(.55+.33*Math.sin(t*k.b+k.q))});if(k.trail.length>16)k.trail.pop();}
+  /* falling stars */
+  if(!shoot&&t>nextShoot&&started){shoot={x:W*(.35+Math.random()*.6),y:HZ*(.05+Math.random()*.2),vx:-(1.5+Math.random()*.9),vy:.75+Math.random()*.45};}
+  if(shoot){shoot.x+=shoot.vx;shoot.y+=shoot.vy;
+    if(Math.hypot(shoot.x-ff.x,shoot.y-ff.y)<38)catchStar();
+    else if(shoot.y>HZ*.92||shoot.x<-60){shoot=null;nextShoot=t+16000+Math.random()*20000;}
+    if(!shoot&&t>nextShoot-1000)nextShoot=t+16000+Math.random()*20000;}
+
+  /* sky */
+  drawSky(t);drawMoon();drawConstellations();
+  for(const L of lanterns)if(L.y<HZ)drawLantern(L,t,1);
+  if(shoot){const g=cx.createLinearGradient(shoot.x,shoot.y,shoot.x-shoot.vx*40,shoot.y-shoot.vy*40);
+    g.addColorStop(0,'rgba(255,240,200,.9)');g.addColorStop(1,'rgba(255,240,200,0)');cx.globalAlpha=1;cx.strokeStyle=g;cx.lineWidth=2;
+    cx.beginPath();cx.moveTo(shoot.x,shoot.y);cx.lineTo(shoot.x-shoot.vx*40,shoot.y-shoot.vy*40);cx.stroke();
+    add();glow(GOLD,shoot.x,shoot.y,46,.9);norm();}
+  drawRidge('#0b1a2e',1);
+
+  /* water */
+  const wg=cx.createLinearGradient(0,HZ,0,H);wg.addColorStop(0,'#13283f');wg.addColorStop(1,'#050d1c');
+  cx.globalAlpha=1;cx.fillStyle=wg;cx.fillRect(0,HZ,W,H-HZ);
+  for(const k of koi)drawKoi(k,t);
+
+  /* reflections */
+  cx.save();cx.beginPath();cx.rect(0,HZ,W,H-HZ);cx.clip();cx.translate(0,2*HZ);cx.scale(1,-1);
+  const[mx,my,mr]=moonPos();add();glow(PALE,mx,my,mr*7,.2);glow(PALE,mx,my,mr*2.4,.35);norm();
+  drawRidge('#08142a',.55);
+  for(const L of lanterns)if(L.y<HZ)drawLantern(L,t,.3);
+  for(const m of motes)if(m.y<HZ)drawMote(m,t,.3);
+  if(ff.y<HZ)drawFirefly(t,.3);
+  cx.restore();
+
+  /* shimmer and moon path */
+  cx.strokeStyle='#eef0e2';cx.lineWidth=1;const depth=H-HZ;
+  for(let i=0;i<46;i++){const y=HZ+3+((i*41.7+t*.006)%depth),near=(y-HZ)/depth,x=(i*97.3)%W+Math.sin(t*.0008+i)*24,len=14+near*50;
+    cx.globalAlpha=(.05+.08*Math.sin(t*.002+i*1.7)**2)*(1-near*.5);cx.beginPath();cx.moveTo(x-len/2,y);cx.lineTo(x+len/2,y);cx.stroke();}
+  cx.fillStyle='#eef0e2';
+  for(let i=0;i<14;i++){const y=HZ+6+i*(depth/15),w=mr*(1.2+i*.35)*(.7+.3*Math.sin(t*.0013+i*2));cx.globalAlpha=.09*(1-i/15);cx.fillRect(mx-w/2,y,w,1.4);}
+
+  /* ripples, lotus, boats */
+  cx.lineWidth=1.2;cx.strokeStyle='#ffd8a0';
+  for(const r of ripples){cx.globalAlpha=r.a;cx.beginPath();cx.ellipse(r.x,r.y,r.r,r.r*.26,0,0,6.283);cx.stroke();
+    if(r.r>14){cx.globalAlpha=r.a*.5;cx.beginPath();cx.ellipse(r.x,r.y,r.r*.6,r.r*.16,0,0,6.283);cx.stroke();}}
+  lotuses.sort((a,b)=>a.y-b.y);for(const L of lotuses)drawLotus(L,t);
+  for(let i=boats.length-1;i>=0;i--){if(drawBoat(boats[i],t)){const B=boats[i];boats.splice(i,1);
+    burst(B.x,B.y-10,22,PALE);swell([220,277.18,329.63,440],4.5,.06);say(rnd(LETGO),B.x,B.y-40,'calm');}}
+
+  /* foreground */
+  for(const L of lanterns)if(L.y>=HZ)drawLantern(L,t,1);
+  for(const m of motes)drawMote(m,t,1);
+  add();
+  for(const w of waves){const a=1-w.r/w.max;cx.globalAlpha=a*.55;cx.strokeStyle='#ffd27a';cx.lineWidth=2;cx.beginPath();cx.arc(w.x,w.y,w.r,0,6.283);cx.stroke();
+    cx.globalAlpha=a*.25;cx.beginPath();cx.arc(w.x,w.y,w.r*.82,0,6.283);cx.stroke();}
+  for(const s of sparks)glow(s.img,s.x,s.y,10,s.l*.8);
+  for(const c of comps)glow(AMBER,c.x,c.y,16,.45+.3*Math.sin(t*.005+c.ph));
+  norm();
+  drawFirefly(t,1);
+  if(hold){const h=Math.max(0,Math.min(1,(t-hold.t)/4000));if(t-hold.t>350)canvasLabel(h<1?'breathe in…':'now let go',ff.x,ff.y-60-h*40,Math.min(1,(t-hold.t-350)/600));}
+  if(outLabel){const k=Math.max(0,(t-outLabel.t)/2400);if(k>=1)outLabel=null;else canvasLabel('and breathe out',outLabel.x,outLabel.y-70-k*30,Math.sin(Math.PI*k));}
+  cx.globalAlpha=1;
+}
+requestAnimationFrame(frame);
+
+/* ---------------- controls ---------------- */
+const soundBtn=document.getElementById('soundBtn');
+soundBtn.addEventListener('click',()=>{
+  soundOn=!soundOn;initAudio();soundBtn.setAttribute('aria-pressed',String(soundOn));soundBtn.textContent=soundOn?'Sound on':'Sound off';
+  if(ac&&master){master.gain.cancelScheduledValues(ac.currentTime);master.gain.linearRampToValueAtTime(soundOn?.6:0,ac.currentTime+.6);if(ac.state==='suspended')ac.resume();}
+});
+const breathBtn=document.getElementById('breathBtn'),breathEl=document.getElementById('breath'),ring=document.getElementById('ring'),bl=document.getElementById('breathLabel'),hint=document.getElementById('hint');
+let bStart=0,bTimer=null;
+breathBtn.addEventListener('click',()=>{
+  const on=breathEl.hidden;breathEl.hidden=!on;breathBtn.setAttribute('aria-pressed',String(on));hint.hidden=true;
+  if(on){ring.style.animation='none';void ring.offsetWidth;ring.style.animation='';bStart=performance.now();const cyc=reduce?14000:10000;
+    const tick=()=>{bl.textContent=((performance.now()-bStart)%cyc)/cyc<.4?'breathe in':'breathe out';};tick();bTimer=setInterval(tick,200);}
+  else clearInterval(bTimer);
+});
+document.getElementById('go').addEventListener('click',()=>{
+  initAudio();if(ac&&ac.state==='suspended')ac.resume();
+  document.getElementById('intro').hidden=true;started=true;lastMove=-1e9;nextShoot=performance.now()+12000;
+  hint.hidden=false;setTimeout(()=>{hint.style.opacity='0';setTimeout(()=>{hint.hidden=true;hint.style.opacity='';},1300);},12000);
+});
+const letgo=document.getElementById('letgo'),thought=document.getElementById('thought');
+document.getElementById('letBtn').addEventListener('click',()=>{initAudio();letgo.hidden=false;thought.value='';setTimeout(()=>thought.focus(),50);});
+document.getElementById('letCancel').addEventListener('click',()=>{letgo.hidden=true;});
+thought.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();document.getElementById('letForm').requestSubmit();}});
+document.getElementById('letForm').addEventListener('submit',e=>{
+  e.preventDefault();const v=thought.value.trim().replace(/\s+/g,' ');letgo.hidden=true;
+  if(!v)return;boats.push({text:v.length>48?v.slice(0,46)+'…':v,t0:performance.now(),x:W*(.35+Math.random()*.3),y:H-56,dx:(Math.random()-.5)*.25});
+  pluck(SCALE[3],0,.12,3);
+});
+addEventListener('keydown',e=>{if(e.key==='Escape')letgo.hidden=true;});
+
+})();
+</script>
+
+</body>
+</html>

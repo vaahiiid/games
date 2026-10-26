@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ccircle cx=%2232%22 cy=%2232%22 r=%2228%22 fill=%22%232d6a5a%22/%3E%3Ccircle cx=%2232%22 cy=%2232%22 r=%2214%22 fill=%22%23ffd27a%22/%3E%3C/svg%3E">
+<title>Quiet Corners</title>
+<meta name="description" content="Small calming games for when you're stressed, angry or just need ten quiet minutes. No scores, no timers, no losing.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: single centred column. Hero with a breathing circle, a "how are you feeling" chooser,
+   three game cards (each with its own small scene), a short "why it helps", the growing-collection note, footer. */
+:root{
+  --bg:#edf1ef;
+  --bg-2:#e3e9e6;
+  --card:#ffffff;
+  --ink:#1d2a2c;
+  --muted:#58686a;
+  --line:rgba(29,42,44,.12);
+  --lake:#26446b;
+  --hill:#c96a5a;
+  --sand:#8a6a3c;
+  --focus:#2d6a5a;
+  --f-display:"Instrument Serif","Iowan Old Style","Palatino Linotype",Georgia,serif;
+  --f-ui:"Figtree",system-ui,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#11181a;--bg-2:#172023;--card:#1b2427;--ink:#e6eeeb;--muted:#9fb0ae;--line:rgba(230,238,235,.12);
+  --lake:#8fb0e0;--hill:#f0a08f;--sand:#e0c08a;--focus:#8fd1bd;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11181a;--bg-2:#172023;--card:#1b2427;--ink:#e6eeeb;--muted:#9fb0ae;--line:rgba(230,238,235,.12);
+  --lake:#8fb0e0;--hill:#f0a08f;--sand:#e0c08a;--focus:#8fd1bd;color-scheme:dark}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font:16px/1.6 var(--f-ui);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1040px;margin:0 auto;padding-block:28px 40px;display:flex;flex-direction:column;gap:56px}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:3px;border-radius:6px}
+
+/* hero */
+.hero{display:grid;grid-template-columns:1.3fr 1fr;gap:32px;align-items:center;padding-top:24px}
+.eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:0}
+h1{font:400 clamp(52px,9vw,96px)/.95 var(--f-display);margin:10px 0 16px;letter-spacing:-.01em;text-wrap:balance}
+h1 em{font-style:italic;color:var(--focus)}
+.lead{font-size:clamp(17px,2vw,19px);line-height:1.6;margin:0;max-width:34rem}
+.promise{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0 0;padding:0;list-style:none}
+.promise li{font-size:13.5px;font-weight:500;border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:var(--card)}
+.breathe{display:grid;place-items:center;aspect-ratio:1;max-width:320px;width:100%;justify-self:center;position:relative}
+.breathe .c{position:absolute;inset:8%;border-radius:50%;
+  background:radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--focus) 30%,transparent),color-mix(in srgb,var(--focus) 6%,transparent) 70%);
+  border:1.5px solid color-mix(in srgb,var(--focus) 45%,transparent);animation:breathe 10s ease-in-out infinite}
+.breathe .c2{inset:0;background:none;border-style:dashed;border-color:var(--line);animation:none}
+.breathe span{position:relative;font:italic 400 26px/1 var(--f-display);color:var(--ink)}
+.breathe small{position:absolute;bottom:4%;font-size:12.5px;color:var(--muted)}
+@keyframes breathe{0%{transform:scale(.55)}40%{transform:scale(1)}100%{transform:scale(.55)}}
+
+/* chooser */
+.choose{display:flex;flex-direction:column;gap:14px}
+h2{font:400 clamp(32px,4.5vw,44px)/1.05 var(--f-display);margin:0;text-wrap:balance}
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+.chip{font:500 15px/1.2 var(--f-ui);color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 16px;cursor:pointer;text-align:left}
+.chip b{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:3px}
+.chip:hover{border-color:color-mix(in srgb,var(--ink) 35%,transparent)}
+
+/* game cards */
+.games{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.game{background:var(--card);border:1px solid var(--line);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;
+  transition:box-shadow .4s,transform .4s;scroll-margin-top:24px}
+.game.lit{box-shadow:0 0 0 3px var(--accent),0 18px 40px rgba(0,0,0,.12);transform:translateY(-3px)}
+.scene{display:block;width:100%;aspect-ratio:16/10;height:auto}
+.body{padding:18px 20px 20px;display:flex;flex-direction:column;gap:10px;flex:1;min-width:0}
+.when{font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--accent);margin:0}
+.game h3{font:400 32px/1.05 var(--f-display);margin:0}
+.game p{margin:0;font-size:15px;color:var(--muted);line-height:1.55}
+.facts{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 0;padding:0;list-style:none}
+.facts li{font-size:12.5px;border:1px solid var(--line);border-radius:999px;padding:4px 10px;color:var(--ink)}
+.play{margin-top:auto;align-self:flex-start;display:inline-flex;align-items:center;gap:8px;text-decoration:none;font:600 15px/1 var(--f-ui);
+  color:#fff;background:var(--accent-solid);border-radius:999px;padding:13px 20px}
+.play:hover{filter:brightness(1.08)}
+.play svg{width:16px;height:16px}
+.g-lake{--accent:var(--lake);--accent-solid:#26446b}
+.g-hill{--accent:var(--hill);--accent-solid:#b55a4b}
+.g-sand{--accent:var(--sand);--accent-solid:#7a5c31}
+
+/* why */
+.why{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.why div{border-top:1px solid var(--line);padding-top:14px}
+.why h4{font:400 24px/1.15 var(--f-display);margin:0 0 6px}
+.why p{margin:0;font-size:15px;color:var(--muted)}
+
+/* growing collection */
+.grow{background:var(--bg-2);border-radius:22px;padding:28px;display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:center}
+.grow .mark{font:italic 400 64px/1 var(--f-display);color:var(--focus)}
+.grow h2{font-size:clamp(28px,3.6vw,36px)}
+.grow p{margin:6px 0 0;color:var(--muted);max-width:44rem}
+
+footer{display:flex;flex-direction:column;gap:14px;border-top:1px solid var(--line);padding-top:28px}
+.made{font:400 clamp(28px,4vw,36px)/1.1 var(--f-display);margin:0}
+.made .heart{color:#d9566b;font-style:normal}
+.contact{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:8px;font:500 15px/1 var(--f-ui);color:var(--ink);background:var(--card);border:1px solid var(--line);
+  border-radius:999px;padding:11px 15px;text-decoration:none;cursor:pointer;-webkit-user-select:text;user-select:text}
+.pill svg{width:17px;height:17px;flex:none}
+.copy{font:500 13px/1 var(--f-ui);color:var(--muted);background:none;border:0;cursor:pointer;padding:8px}
+.care{font-size:13.5px;color:var(--muted);margin:0;max-width:42rem}
+.fine{font-size:13px;color:var(--muted);margin:0}
+
+@media (max-width:860px){
+  .hero{grid-template-columns:1fr;padding-top:8px}
+  .breathe{max-width:220px;order:-1}
+  .games,.why{grid-template-columns:1fr}
+  .wrap{gap:44px}
+}
+@media (max-width:480px){.grow{grid-template-columns:1fr;padding:22px}.grow .mark{font-size:48px}.chip{flex:1 1 100%}}
+@media (prefers-reduced-motion:reduce){.breathe .c{animation-duration:16s}.game{transition:none}html{scroll-behavior:auto}}
+</style>
+
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}a.btn{text-decoration:none;display:inline-flex;align-items:center;gap:7px}</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Small games for big feelings</p>
+      <h1>Quiet <em>Corners</em></h1>
+      <p class="lead">Three little games for when you're stressed, angry, or just need ten quiet minutes. There are no scores to chase, no timers and no way to lose. The only goal is to feel a little calmer than when you arrived.</p>
+      <ul class="promise"><li>No sign-up</li><li>No ads</li><li>Works on your phone</li><li>Sound recommended</li></ul>
+    </div>
+    <div class="breathe" aria-hidden="true">
+      <div class="c c2"></div><div class="c"></div><span id="bword">breathe in</span><small>Breathe with the circle while you choose</small>
+    </div>
+  </header>
+
+  <section class="choose" aria-labelledby="feel">
+    <h2 id="feel">How are you feeling right now?</h2>
+    <div class="chips">
+      <button class="chip" data-go="lake"><b>Racing thoughts</b>My mind won't switch off</button>
+      <button class="chip" data-go="hill"><b>Tense or angry</b>I feel wound up and impatient</button>
+      <button class="chip" data-go="sand"><b>Restless</b>I want to do something with my hands</button>
+    </div>
+  </section>
+
+  <section class="games" aria-label="The games">
+    <article class="game g-lake" id="lake">
+      <svg class="scene" viewBox="0 0 320 200" role="img" aria-label="A firefly over a night lake with lanterns in the sky">
+        <defs>
+          <linearGradient id="lk1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a1430"/><stop offset="1" stop-color="#27435e"/></linearGradient>
+          <linearGradient id="lk2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#13283f"/><stop offset="1" stop-color="#050d1c"/></linearGradient>
+          <radialGradient id="lk3"><stop offset="0" stop-color="#fff6d0"/><stop offset=".25" stop-color="#ffd27a" stop-opacity=".9"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+          <radialGradient id="lk4"><stop offset="0" stop-color="#eaffff"/><stop offset=".3" stop-color="#96f0cd" stop-opacity=".8"/><stop offset="1" stop-color="#96f0cd" stop-opacity="0"/></radialGradient>
+        </defs>
+        <rect width="320" height="128" fill="url(#lk1)"/>
+        <path d="M0 128 C40 112 70 118 110 114 S190 106 230 116 300 110 320 118 L320 128Z" fill="#0b1a2e"/>
+        <rect y="128" width="320" height="72" fill="url(#lk2)"/>
+        <circle cx="62" cy="38" r="13" fill="#ecefdc"/><rect x="50" y="138" width="24" height="1.4" fill="#ecefdc" opacity=".25"/><rect x="46" y="148" width="32" height="1.4" fill="#ecefdc" opacity=".16"/>
+        <g fill="#e9eddc" opacity=".7"><circle cx="130" cy="20" r="1"/><circle cx="210" cy="34" r=".9"/><circle cx="280" cy="16" r="1.1"/><circle cx="168" cy="58" r=".8"/><circle cx="246" cy="74" r=".9"/></g>
+        <g><circle cx="196" cy="44" r="10" fill="url(#lk3)"/><rect x="193.5" y="40.5" width="5" height="7" rx="1.6" fill="#ffc677"/>
+           <circle cx="252" cy="30" r="8" fill="url(#lk3)"/><rect x="250" y="27.5" width="4" height="5" rx="1.2" fill="#ffc677"/>
+           <circle cx="150" cy="34" r="7" fill="url(#lk3)"/><rect x="148.3" y="31.5" width="3.4" height="4.6" rx="1" fill="#ffc677"/></g>
+        <circle cx="120" cy="104" r="34" fill="url(#lk3)" opacity=".7"/><circle cx="120" cy="104" r="7" fill="url(#lk3)"/>
+        <circle cx="236" cy="150" r="14" fill="url(#lk4)"/><circle cx="84" cy="168" r="11" fill="url(#lk4)"/>
+        <ellipse cx="236" cy="158" rx="22" ry="5" fill="none" stroke="#ffd8a0" stroke-opacity=".4"/>
+      </svg>
+      <div class="body">
+        <p class="when">When your mind is racing</p>
+        <h3>Firefly Lake</h3>
+        <p>Guide a firefly across a night lake. Every light you catch lets go of a kind word and sends a lantern into the sky. Hold still to breathe in, release to breathe out a wave of light, and set your worries adrift on paper boats.</p>
+        <ul class="facts"><li>Gentle focus</li><li>Kind words</li><li>Breathing</li></ul>
+        <a class="play" href="firefly-lake/">Play Firefly Lake <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg></a>
+      </div>
+    </article>
+
+    <article class="game g-hill" id="hill">
+      <svg class="scene" viewBox="0 0 320 200" role="img" aria-label="A shy sheep on a hill at sunset, with grass held out">
+        <defs><linearGradient id="hl1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fb3e0"/><stop offset=".55" stop-color="#f0c3b0"/><stop offset="1" stop-color="#ffe2b0"/></linearGradient>
+          <linearGradient id="hl2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8db66d"/><stop offset="1" stop-color="#5b8c46"/></linearGradient></defs>
+        <rect width="320" height="200" fill="url(#hl1)"/>
+        <circle cx="236" cy="96" r="20" fill="#fff1c9"/>
+        <path d="M0 102 C60 88 120 100 180 92 S280 86 320 96 V200 H0Z" fill="#c1b4c9"/>
+        <path d="M0 116 C70 104 130 118 200 108 S290 104 320 112 V200 H0Z" fill="#a9bd8e"/>
+        <rect x="292" y="84" width="22" height="18" fill="#b5523f"/><path d="M289 85 L303 74 L317 85Z" fill="#7b3a30"/>
+        <path d="M0 128 C80 120 160 132 240 124 S300 122 320 126 V200 H0Z" fill="url(#hl2)"/>
+        <g transform="translate(150 152)">
+          <ellipse cx="0" cy="22" rx="34" ry="6" fill="#2f3a1e" opacity=".2"/>
+          <g fill="#3a3034"><rect x="-20" y="8" width="5" height="16"/><rect x="-8" y="8" width="5" height="16"/><rect x="8" y="8" width="5" height="16"/><rect x="18" y="8" width="5" height="16"/></g>
+          <g fill="#fbf6ec"><circle cx="-22" cy="-2" r="13"/><circle cx="-8" cy="-12" r="15"/><circle cx="8" cy="-13" r="16"/><circle cx="22" cy="-6" r="13"/><circle cx="-14" cy="8" r="12"/><circle cx="6" cy="6" r="15"/><circle cx="20" cy="8" r="11"/></g>
+          <ellipse cx="38" cy="-6" rx="11" ry="14" transform="rotate(14 38 -6)" fill="#3a3034"/>
+          <ellipse cx="30" cy="-15" rx="9" ry="3.6" transform="rotate(-28 30 -15)" fill="#3a3034"/>
+          <g fill="#fbf6ec"><circle cx="35" cy="-19" r="5.5"/><circle cx="41" cy="-20" r="4.5"/></g>
+          <circle cx="42" cy="-8" r="3" fill="#fff"/><circle cx="43" cy="-8" r="1.6" fill="#1d1718"/>
+          <ellipse cx="44" cy="-1" rx="3" ry="1.8" fill="#ff8c96" opacity=".6"/>
+        </g>
+        <g transform="translate(216 140)" stroke-linecap="round" stroke-width="3" fill="none"><path d="M0 16 Q-6 4 -10 -8" stroke="#4f9238"/><path d="M0 16 Q0 2 1 -10" stroke="#6fb24e"/><path d="M0 16 Q6 4 11 -6" stroke="#4f9238"/><path d="M0 16 Q-3 6 -4 -12" stroke="#6fb24e"/></g>
+        <g transform="translate(160 106)"><path d="M-30 0 a5 5 0 0 1 8 -3 a5 5 0 0 1 8 3 l-8 8z" fill="#ef6f86"/><path d="M-12 0 a5 5 0 0 1 8 -3 a5 5 0 0 1 8 3 l-8 8z" fill="#ef6f86"/><path d="M6 0 a5 5 0 0 1 8 -3 a5 5 0 0 1 8 3 l-8 8z" fill="#ef6f86" opacity=".35"/></g>
+      </svg>
+      <div class="body">
+        <p class="when">When you feel tense or angry</p>
+        <h3>Shy Sheep Hill</h3>
+        <p>A shy sheep only trusts slow, steady hands. Rush, and she bolts off and sulks for a bit. Move gently, and she eats from your hand, fills her five hearts and lets you pet her to sleep. Slowing your hands slows the rest of you down too.</p>
+        <ul class="facts"><li>Patience</li><li>Slow movement</li><li>A growing flock</li></ul>
+        <a class="play" href="shy-sheep-hill/">Play Shy Sheep Hill <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg></a>
+      </div>
+    </article>
+
+    <article class="game g-sand" id="sand">
+      <svg class="scene" viewBox="0 0 320 200" role="img" aria-label="A dry garden of raked sand with stones, ripples and moss">
+        <rect width="320" height="200" fill="#6e4c34"/>
+        <rect x="10" y="10" width="300" height="180" fill="#e8d8bc"/>
+        <g fill="none" stroke-linecap="round">
+          <g stroke="#a88d63" stroke-opacity=".45" stroke-width="2">
+            <path d="M10 30H310M10 38H310M10 46H310"/><path d="M10 150H310M10 158H310M10 166H310M10 174H310"/>
+            <circle cx="110" cy="98" r="34"/><circle cx="110" cy="98" r="44"/><circle cx="110" cy="98" r="54"/>
+            <circle cx="226" cy="112" r="26"/><circle cx="226" cy="112" r="36"/><circle cx="226" cy="112" r="46"/>
+          </g>
+          <g stroke="#fffaf0" stroke-opacity=".7" stroke-width="1.2" transform="translate(-.8 -.8)">
+            <path d="M10 30H310M10 38H310M10 46H310"/><path d="M10 150H310M10 158H310M10 166H310M10 174H310"/>
+            <circle cx="110" cy="98" r="34"/><circle cx="110" cy="98" r="44"/><circle cx="110" cy="98" r="54"/>
+            <circle cx="226" cy="112" r="26"/><circle cx="226" cy="112" r="36"/><circle cx="226" cy="112" r="46"/>
+          </g>
+        </g>
+        <ellipse cx="114" cy="104" rx="24" ry="18" fill="#3f3a33" opacity=".3"/>
+        <path d="M86 96c0-14 14-22 26-21s22 8 21 20-12 18-25 17-22-4-22-16z" fill="#8f8a83"/>
+        <path d="M94 88c6-8 18-10 26-6" stroke="#fff" stroke-opacity=".25" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <ellipse cx="229" cy="117" rx="16" ry="12" fill="#3f3a33" opacity=".3"/>
+        <path d="M210 110c0-9 9-14 17-13s14 6 13 13-8 11-16 10-14-3-14-10z" fill="#9a9188"/>
+        <g fill="#7d8f45"><circle cx="86" cy="118" r="4"/><circle cx="93" cy="124" r="5"/><circle cx="101" cy="126" r="4"/><circle cx="80" cy="112" r="3"/></g>
+        <g fill="#93a152"><circle cx="89" cy="121" r="2.5"/><circle cx="98" cy="122" r="2"/></g>
+        <path d="M270 52 q5 -4 0 -12 q-5 8 0 12z" fill="#c9632e"/><path d="M52 140 q5 -4 0 -12 q-5 8 0 12z" fill="#d98a2b" transform="rotate(30 52 134)"/>
+      </svg>
+      <div class="body">
+        <p class="when">When you're restless</p>
+        <h3>Moss &amp; Sand</h3>
+        <p>A small Japanese dry garden that's all yours. Rake slow lines in the sand, ripple it around stones, grow moss and watch four seasons pass. Gentle prompts give you something to do, and you can keep the gardens you love.</p>
+        <ul class="facts"><li>Making something</li><li>Slow repetition</li><li>Four seasons</li></ul>
+        <a class="play" href="moss-and-sand/">Play Moss &amp; Sand <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg></a>
+      </div>
+    </article>
+  </section>
+
+  <section aria-labelledby="whyh" style="display:flex;flex-direction:column;gap:18px">
+    <h2 id="whyh">Why slow games help</h2>
+    <div class="why">
+      <div><h4>Slower hands</h4><p>Moving slowly and smoothly is hard to do while you're wound up. Each game rewards slowness, so your body gets the message before your mind does.</p></div>
+      <div><h4>Longer breaths out</h4><p>A long exhale is one of the quickest ways to settle your heart rate. The games keep inviting you to breathe in, then let go.</p></div>
+      <div><h4>Kinder words</h4><p>Anger and stress are loud. Small, kind sentences along the way give your thoughts something gentler to hold on to.</p></div>
+    </div>
+  </section>
+
+  <section class="grow" aria-labelledby="growh">
+    <div class="mark" aria-hidden="true">+</div>
+    <div>
+      <h2 id="growh">More quiet corners are on the way</h2>
+      <p>This is a growing collection. New games will be added over time, and every one of them has the same single goal: to help you feel calmer. Nothing to win, nothing to buy, nothing to prove.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p class="made">Made with <span class="heart">♥</span> by Vahid</p>
+    <div class="contact">
+      <span class="pill" id="mail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/></svg><a href="mailto:vahidmoir@gmail.com" id="mailText" style="text-decoration:none">vahidmoir@gmail.com</a><button class="copy" id="copyMail" type="button">Copy</button></span>
+      <a class="pill" href="https://github.com/vaahiiid" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.2-3.37-1.2-.46-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02A9.6 9.6 0 0 1 12 6.84c.85 0 1.7.11 2.5.33 1.9-1.29 2.74-1.02 2.74-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></svg>github.com/vaahiiid</a>
+    </div>
+    <p class="care">These games are for everyday stress. If things feel heavier than a game can help with, please reach out to someone you trust or a professional.</p>
+    <p class="fine">Everything you save in the games, like your flock or your gardens, stays on your own device.</p>
+  </footer>
+</div>
+
+<script>
+(function(){
+  /* breathing word follows the circle: 4s in, 6s out */
+  const w=document.getElementById('bword'),t0=performance.now(),cyc=matchMedia('(prefers-reduced-motion: reduce)').matches?16000:10000;
+  setInterval(()=>{w.textContent=((performance.now()-t0)%cyc)/cyc<.4?'breathe in':'breathe out';},200);
+  document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{
+    const el=document.getElementById(c.dataset.go);document.querySelectorAll('.game').forEach(g=>g.classList.toggle('lit',g===el));
+    el.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'center'});
+    setTimeout(()=>{const a=el.querySelector('.play');if(a)a.focus({preventScroll:true});},500);
+  }));
+  document.getElementById('copyMail').addEventListener('click',e=>{
+    const b=e.currentTarget,txt='vahidmoir@gmail.com';
+    const ok=()=>{b.textContent='Copied';setTimeout(()=>b.textContent='Copy',1600);};
+    try{navigator.clipboard.writeText(txt).then(ok,()=>sel());}catch(_){sel();}
+    function sel(){const r=document.createRange();r.selectNodeContents(document.getElementById('mailText'));const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Selected';setTimeout(()=>b.textContent='Copy',1600);}
+  });
+})();
+</script>
+
+</body>
+</html>
